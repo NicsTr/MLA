@@ -129,13 +129,13 @@ fn ensure_directory_content(directory: &Path, files: &[NamedTempFile]) {
     assert_eq!(fname2content.len(), 0);
 }
 
-fn file_list_append_from_dir(dir: &Path, file_list: &mut String) {
+fn file_list_append_from_dir(dir: &Path, file_list: &mut Vec<String>) {
     for entry in read_dir(dir).unwrap() {
         let new_path = entry.unwrap().path();
         if new_path.is_dir() {
             file_list_append_from_dir(&new_path, file_list);
         } else {
-            file_list.push_str(format!("{}\n", new_path.to_string_lossy()).as_str());
+            file_list.push(new_path.to_string_lossy().to_string());
         }
     }
 }
@@ -166,14 +166,14 @@ fn test_create_from_dir() {
 
     cmd.arg(tmp_dir.path());
 
-    let mut file_list = String::new();
+    let mut file_list: Vec<String> = Vec::new();
     // The exact order of the files in the archive depends on the order of the
     // result of `read_dir` which is plateform and filesystem dependent.
     file_list_append_from_dir(tmp_dir.path(), &mut file_list);
 
     println!("{:?}", cmd);
     let assert = cmd.assert();
-    assert.success().stderr(file_list.clone());
+    assert.success().stderr(file_list.join("\n") + "\n");
 
     // `mlar list -i output.mla -k samples/test_x25519.pem`
     let mut cmd = Command::cargo_bin(UTIL).unwrap();
@@ -185,8 +185,8 @@ fn test_create_from_dir() {
 
     println!("{:?}", cmd);
     let assert = cmd.assert();
-
-    assert.success().stdout(file_list);
+    file_list.sort();
+    assert.success().stdout(file_list.join("\n") + "\n");
 }
 
 #[test]
